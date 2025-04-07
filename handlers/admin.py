@@ -27,6 +27,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if uid == OWNER:
         keyboard.append([InlineKeyboardButton("➕ Добавить админа", callback_data="admin_add")])
         keyboard.append([InlineKeyboardButton("💲 Изменить цену за заход по рефералке", callback_data="admin_set_price_referred")])
-        keyboard.append([InlineKeyboardButton("💲 Изменить цену за приглашенного", callback_data="admin_set_price_inviter")])
+        keyboard.append([InlineKeyboardButton("💲 Изменить цену за приглашенного", callback_data="admin_set_price_inviter")]),
+        keyboard.append([InlineKeyboardButton("💲 Изменить цену на минимальный вывод", callback_data="admin_set_minimum_output")])
     
     await update.message.reply_text("🛠 Админ-панель:", reply_markup=InlineKeyboardMarkup(keyboard))

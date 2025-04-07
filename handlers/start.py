@@ -95,13 +95,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cursor.execute("SELECT referral_price_inviter FROM settings")
     referral_price_inviter = cursor.fetchone()[0]
     
+    # Получаем цену за переход по реферальной ссылке
+    cursor.execute("SELECT referral_price_referred FROM settings WHERE id=1")
+    price_referred = cursor.fetchone()[0]
+    
+    # Получаем минимальный вывод
+    cursor.execute("SELECT minimum_output FROM settings WHERE id=1")
+    price_referred = cursor.fetchone()[0]
 
     from urllib.parse import quote_plus
 
     # Текст сообщения для шаринга (без ссылки)
     share_text = f"""🎉 **Получите бесплатные звёзды!** 🎉
 
-Мы уже отправили **более тысячи звёзд** и дарим вам **{stars} ⭐️** за переход в наш бот! 😎
+Мы уже отправили **более тысячи звёзд** и дарим вам **{price_referred} ⭐️** за переход в наш бот! 😎
 
 Не упустите шанс! 🚀
 

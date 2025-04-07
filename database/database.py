@@ -15,7 +15,7 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS users (
 )''')
 
 cursor.execute('''CREATE TABLE IF NOT EXISTS withdraw_requests (
-    user_id INTEGER,
+    user_id INTEGER PRIMARY KEY,
     stars INTEGER,
     status TEXT
 )''')
@@ -28,7 +28,9 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS partners (
 cursor.execute('''CREATE TABLE IF NOT EXISTS settings (
     id INTEGER PRIMARY KEY,
     referral_price_inviter INTEGER DEFAULT 1,
-    referral_price_referred INTEGER DEFAULT 1
+    referral_price_referred INTEGER DEFAULT 1,
+    minimum_output INTEGER DEFAULT 50
+    
 )''')
 
 cursor.execute("INSERT OR IGNORE INTO settings (id, referral_price_inviter, referral_price_referred) VALUES (1, 1, 1)")

@@ -132,7 +132,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             # Проверяем, что пользователь ввёл текст (а не команду или пустое сообщение)
             if not text or text.startswith('/'):
-                await update.message.reply_text("❌ Неверный формат. Введите текст для рассылки.", reply_markup=back_button())
+                await update.message.reply_text("❌ Неверный формат. Введите текст для рассылки.", reply_markup=admin_back())
                 return
 
             print("Начинаем рассылку.")
@@ -145,7 +145,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     print(f"Сообщение отправлено пользователю {user_id}")
                 except Exception as e:
                     print(f"Ошибка при отправке сообщения пользователю {user_id}: {e}")
-            await update.message.reply_text("✅ Рассылка завершена.", reply_markup=back_button())
+            await update.message.reply_text("✅ Рассылка завершена.", reply_markup=admin_back())
 
             del actions[uid]  # Удаляем действие после завершения
             return
@@ -160,7 +160,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if '-' not in text or not text.split('-')[1].strip().startswith('@'):
                 await update.message.reply_text(
                     "❌ Неверный формат. Используйте: описание - @тег",
-                    reply_markup=back_button()
+                    reply_markup=admin_back()
                 )
                 return
 
@@ -171,7 +171,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not tag.startswith("@"):
                 await update.message.reply_text(
                     "❌ Неверный формат. Тег должен начинаться с '@'.",
-                    reply_markup=back_button()
+                    reply_markup=admin_back()
                 )
                 return
 
@@ -181,21 +181,21 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if chat.type not in ["channel", "supergroup"]:
                     await update.message.reply_text(
                         "❌ Указанный тег не является каналом или супергруппой.",
-                        reply_markup=back_button()
+                        reply_markup=admin_back()
                     )
                     return
             except Exception as e:
                 print(f"Ошибка проверки тега {tag}: {e}")
                 await update.message.reply_text(
                     "❌ Тег не найден. Убедитесь, что бот является администратором канала.",
-                    reply_markup=back_button()
+                    reply_markup=admin_back()
                 )
                 return
 
             # Если все проверки пройдены, добавляем партнёра
             cursor.execute("INSERT INTO partners (info, contact) VALUES (?, ?)", (description, tag))
             conn.commit()
-            await update.message.reply_text("✅ Партнёр добавлен.", reply_markup=back_button())
+            await update.message.reply_text("✅ Партнёр добавлен.", reply_markup=admin_back())
             print(f"Партнёр добавлен: {description} - {tag}")
 
             # Удаляем действие после завершения
@@ -209,7 +209,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
 
             elif not text.isdigit():
-                await update.message.reply_text("❌ Неверный формат. Введите целое число.", reply_markup=back_button())
+                await update.message.reply_text("❌ Неверный формат. Введите целое число.", reply_markup=admin_back())
                 return
 
             contact = text.strip()
@@ -222,11 +222,11 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Удаляем партнёра, если он существует
                 cursor.execute("DELETE FROM partners WHERE contact=?", (contact,))
                 conn.commit()
-                await update.message.reply_text(f"✅ Партнёр {contact} успешно удалён.", reply_markup=back_button())
+                await update.message.reply_text(f"✅ Партнёр {contact} успешно удалён.", reply_markup=admin_back())
                 print(f"Партнёр удалён: {contact}")
             else:
                 # Если партнёр не найден
-                await update.message.reply_text(f"❌ Партнёр {contact} не найден.", reply_markup=back_button())
+                await update.message.reply_text(f"❌ Партнёр {contact} не найден.", reply_markup=admin_back())
                 print(f"Попытка удалить несуществующего партнёра: {contact}")
                 
             if uid in actions:
@@ -242,7 +242,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Убедимся, что тег начинается с @ и не пустой
                 new_admin_username = new_admin[1:]
                 if not new_admin_username:
-                    await update.message.reply_text("❌ Неверный формат. Введите корректный тег администратора.", reply_markup=back_button())
+                    await update.message.reply_text("❌ Неверный формат. Введите корректный тег администратора.", reply_markup=admin_back())
                     return
 
                 # Проверяем, существует ли пользователь с таким тегом
@@ -251,17 +251,17 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if result:
                     new_admin_id = result[0]
                 else:
-                    await update.message.reply_text("❌ Пользователь с таким тегом не найден.", reply_markup=back_button())
+                    await update.message.reply_text("❌ Пользователь с таким тегом не найден.", reply_markup=admin_back())
                     return
             elif new_admin.isdigit():  # Если это ID
                 new_admin_id = int(new_admin)
             else:
-                await update.message.reply_text("❌ Неверный формат. Введите ID администратора или тег (начинается с @).", reply_markup=back_button())
+                await update.message.reply_text("❌ Неверный формат. Введите ID администратора или тег (начинается с @).", reply_markup=admin_back())
                 return
 
             # Проверяем, не добавлен ли уже администратор
             if new_admin_id in ADMIN_IDS:
-                await update.message.reply_text("❌ Этот пользователь уже является администратором.", reply_markup=back_button())
+                await update.message.reply_text("❌ Этот пользователь уже является администратором.", reply_markup=admin_back())
                 return
 
             # Добавляем нового администратора
@@ -272,7 +272,7 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             with open(config_path, 'w', encoding='utf-8') as f:
                 json.dump(config, f, ensure_ascii=False, indent=4)
 
-            await update.message.reply_text("✅ Новый администратор добавлен.", reply_markup=back_button())
+            await update.message.reply_text("✅ Новый администратор добавлен.", reply_markup=admin_back())
             print(f"Новый администратор добавлен: {new_admin_id}")
             if uid in actions:
                 actions.pop(uid, None)
@@ -290,8 +290,11 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             cursor.execute("SELECT stars FROM users WHERE id=?", (uid,))
             available_stars = cursor.fetchone()[0]
 
-            if stars_to_withdraw < 50:
-                await update.message.reply_text("❌ Минимальная сумма для вывода: 50 ⭐.", reply_markup=back_button())
+            cursor.execute("SELECT minimum_output FROM settings WHERE id=1")
+            minimum_output = cursor.fetchone()[0]
+
+            if stars_to_withdraw < minimum_output:
+                await update.message.reply_text(f"❌ Минимальная сумма для вывода: {minimum_output} ⭐.", reply_markup=back_button())
             elif stars_to_withdraw > available_stars:
                 await update.message.reply_text(f"❌ У вас недостаточно звёзд. Доступно: {available_stars} ⭐.", reply_markup=back_button())
             else:
@@ -299,11 +302,16 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 cursor.execute("INSERT INTO withdraw_requests (user_id, stars, status) VALUES (?, ?, 'pending')", (uid, stars_to_withdraw))
                 conn.commit()
 
-                # Уведомляем администраторов
+                # Уведомляем администраторов и сохраняем идентификаторы сообщений
+                admin_messages = {}
                 for admin in ADMIN_IDS:
-                    await context.bot.send_message(
+                    msg = await context.bot.send_message(
                         admin,
-                        f"🤑 Запрос на вывод от @{update.effective_user.username or uid} (⭐ {stars_to_withdraw})",
+                        f"🤑 <b>Запрос на вывод</b>\n\n"
+                        f"👤 Пользователь: @{update.effective_user.username or uid}\n"
+                        f"💸 Сумма: {stars_to_withdraw} ⭐\n\n"
+                        f"Выберите действие:",
+                        parse_mode="HTML",
                         reply_markup=InlineKeyboardMarkup([
                             [
                                 InlineKeyboardButton("✅ Принять", callback_data=f"confirm_withdraw_{uid}"),
@@ -311,9 +319,40 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             ]
                         ])
                     )
+                    admin_messages[admin] = msg.message_id
+
+                # Сохраняем идентификаторы сообщений в контексте
+                context.bot_data[f"withdraw_request_{uid}"] = admin_messages
 
                 await update.message.reply_text("✅ Запрос отправлен. Ожидайте ответа.", reply_markup=back_button())
 
+            if uid in actions:
+                actions.pop(uid, None)
+                
+
+        elif action == 'set_minimum_output':
+            if uid != config["OWNER"]:  # Проверяем, является ли пользователь владельцем
+                await update.message.reply_text("⛔ У вас нет доступа.")
+                return
+
+            # Проверяем, что пользователь ввёл число
+            if not text.isdigit():
+                await update.message.reply_text("❌ Неверный формат. Введите целое число.", reply_markup=admin_back())
+                return
+
+            # Обновляем минимальный вывод в базе данных
+            new_minimum_output = int(text)
+            cursor.execute("UPDATE settings SET minimum_output=? WHERE id=1", (new_minimum_output,))
+            conn.commit()
+
+            # Отправляем подтверждение пользователю
+            await update.message.reply_text(
+                f"✅ Минимальная сумма для вывода обновлена до {new_minimum_output} ⭐.",
+                reply_markup=admin_back()
+            )
+            print(f"Минимальная сумма для вывода обновлена до {new_minimum_output} ⭐.")
+
+            # Удаляем действие из `actions`
             if uid in actions:
                 actions.pop(uid, None)
         
