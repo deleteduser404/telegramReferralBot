@@ -310,14 +310,8 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         f"🤑 <b>Запрос на вывод</b>\n\n"
                         f"👤 Пользователь: @{update.effective_user.username or uid}\n"
                         f"💸 Сумма: {stars_to_withdraw} ⭐\n\n"
-                        f"Выберите действие:",
-                        parse_mode="HTML",
-                        reply_markup=InlineKeyboardMarkup([
-                            [
-                                InlineKeyboardButton("✅ Принять", callback_data=f"confirm_withdraw_{uid}"),
-                                InlineKeyboardButton("❌ Отклонить", callback_data=f"reject_withdraw_{uid}")
-                            ]
-                        ])
+                        f"Принять и отклонить заявку можно только через админ панель!",
+                        parse_mode="HTML"
                     )
                     admin_messages[admin] = msg.message_id
 

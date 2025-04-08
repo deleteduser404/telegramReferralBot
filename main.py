@@ -102,7 +102,37 @@ application.add_handler(CallbackQueryHandler(buttonInlineHandler))
 application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, combinedHandler))
 application.add_handler(MessageHandler(filters.TEXT, text_handler))
 
+import asyncio
+from telegram.error import Forbidden
+
+async def check_blocked_users(context):
+    """Фоновая задача для проверки пользователей, заблокировавших бота."""
+    while True:
+        cursor.execute("SELECT user_id FROM withdraw_requests")
+        users = cursor.fetchall()
+
+        for (user_id,) in users:
+            try:
+                # Проверяем, доступен ли пользователь
+                await context.bot.get_chat_member(chat_id=user_id, user_id=user_id)
+            except Forbidden:
+                # Если пользователь заблокировал бота, удаляем его из withdraw_requests
+                cursor.execute("DELETE FROM withdraw_requests WHERE user_id=?", (user_id,))
+                conn.commit()
+                print(f"Пользователь {user_id} удалён из withdraw_requests (заблокировал бота).")
+            except Exception as e:
+                print(f"Ошибка при проверке пользователя {user_id}: {e}")
+
+        # Ждём 5 минут перед следующей проверкой
+        await asyncio.sleep(300)
+
+# Запуск фоновой задачи
+async def start_background_tasks(application):
+    """Запускает фоновую задачу при старте бота."""
+    application.create_task(check_blocked_users(application))
+
 # === Запуск бота ===
 if __name__ == "__main__":
     logger.info("🤖 Бот запущен!")
+    start_background_tasks(application)  # Запуск фоновой задачи
     application.run_polling()

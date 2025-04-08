@@ -201,64 +201,6 @@ async def buttonInlineHandler(update: Update, context: ContextTypes.DEFAULT_TYPE
         actions['ask'].add(uid)
         await query.edit_message_text("Введите ваш вопрос:", reply_markup=back_button())
 
-    # === Обработка подтверждения или отклонения заявки ===
-    elif data.startswith("confirm_withdraw_") or data.startswith("reject_withdraw_"):
-        target_uid = int(data.split("_")[2])
-        action = "confirm" if data.startswith("confirm_withdraw_") else "reject"
-
-        # Проверяем, существует ли заявка
-        cursor.execute("SELECT stars FROM withdraw_requests WHERE user_id=? AND status='pending'", (target_uid,))
-        request = cursor.fetchone()
-        if not request:
-            await query.edit_message_text("❌ Заявка уже обработана.")
-            return
-
-        stars = request[0]
-        admin_username = query.from_user.username or query.from_user.id
-
-        # Обновляем статус заявки
-        new_status = "approved" if action == "confirm" else "rejected"
-        cursor.execute("UPDATE withdraw_requests SET status=? WHERE user_id=?", (new_status, target_uid))
-        conn.commit()
-
-        # Обновляем баланс пользователя, если заявка подтверждена
-        if action == "confirm":
-            cursor.execute("UPDATE users SET stars=stars-?, withdrawn=withdrawn+? WHERE id=?", (stars, stars, target_uid))
-            conn.commit()
-
-        # Формируем текст для обновления сообщений
-        status_text = "✅ Одобрено" if action == "confirm" else "❌ Отклонено"
-        notification_text = (
-            f"🤑 <b>Запрос на вывод</b>\n\n"
-            f"👤 Пользователь: @{target_uid}\n"
-            f"💸 Сумма: {stars} ⭐\n"
-            f"Статус: {status_text}\n\n"
-            f"👮‍♂️ Обработал: @{admin_username}"
-        )
-
-        # Обновляем сообщения у всех администраторов
-        admin_messages = context.bot_data.get(f"withdraw_request_{target_uid}", {})
-        for admin_id, message_id in admin_messages.items():
-            try:
-                await context.bot.edit_message_text(
-                    chat_id=admin_id,
-                    message_id=message_id,
-                    text=notification_text,
-                    parse_mode="HTML"
-                )
-            except Exception as e:
-                print(f"Ошибка при обновлении сообщения для администратора {admin_id}: {e}")
-
-        # Уведомляем пользователя
-        user_notification = (
-            f"✅ Ваш запрос на вывод {stars} ⭐ был одобрен!" if action == "confirm"
-            else f"❌ Ваш запрос на вывод {stars} ⭐ был отклонён."
-        )
-        try:
-            await context.bot.send_message(target_uid, user_notification)
-        except Exception as e:
-            print(f"Ошибка при отправке уведомления пользователю {target_uid}: {e}")
-
     # === Back button
     elif data == 'back':
         from keyboards import getInlineKeyboardBut
@@ -522,6 +464,127 @@ async def buttonInlineHandler(update: Update, context: ContextTypes.DEFAULT_TYPE
             keyboard.append(pagination_buttons)
 
         # Отправляем сообщение с заявками и клавиатурой
+        await query.edit_message_text(
+            f"📋 <b>Заявки на вывод (Страница {page}/{total_pages}):</b>\n\n{requests_text}",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+    # === Обработка подтверждения или отклонения заявки ===
+    elif data.startswith("confirm_withdraw_") or data.startswith("reject_withdraw_"):
+        target_uid = int(data.split("_")[2])
+        action = "confirm" if data.startswith("confirm_withdraw_") else "reject"
+
+        # Проверяем, существует ли заявка
+        cursor.execute("SELECT stars FROM withdraw_requests WHERE user_id=? AND status='pending'", (target_uid,))
+        request = cursor.fetchone()
+        if not request:
+            await query.edit_message_text("❌ Заявка уже обработана.")
+            return
+
+        stars = request[0]
+        admin_username = query.from_user.username or query.from_user.id
+
+        # Обновляем статус заявки
+        new_status = "approved" if action == "confirm" else "rejected"
+        cursor.execute("UPDATE withdraw_requests SET status=? WHERE user_id=?", (new_status, target_uid))
+        conn.commit()
+
+        # Обновляем баланс пользователя, если заявка подтверждена
+        if action == "confirm":
+            cursor.execute("UPDATE users SET stars=stars-?, withdrawn=withdrawn+? WHERE id=?", (stars, stars, target_uid))
+            conn.commit()
+
+        # Формируем текст для уведомления
+        status_text = "✅ Одобрено" if action == "confirm" else "❌ Отклонено"
+        notification_text = (
+            f"🤑 <b>Запрос на вывод</b>\n\n"
+            f"👤 Пользователь: @{target_uid}\n"
+            f"💸 Сумма: {stars} ⭐\n"
+            f"Статус: {status_text}\n\n"
+            f"👮‍♂️ Обработал: @{admin_username}"
+        )
+
+        # Уведомляем всех администраторов
+        for admin_id in ADMIN_IDS:
+            try:
+                await context.bot.send_message(
+                    chat_id=admin_id,
+                    text=notification_text,
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                print(f"Ошибка при отправке уведомления администратору {admin_id}: {e}")
+
+        # Уведомляем пользователя
+        user_notification = (
+            f"✅ Ваш запрос на вывод {stars} ⭐ был одобрен!" if action == "confirm"
+            else f"❌ Ваш запрос на вывод {stars} ⭐ был отклонён."
+        )
+        try:
+            await context.bot.send_message(target_uid, user_notification)
+        except Exception as e:
+            print(f"Ошибка при отправке уведомления пользователю {target_uid}: {e}")
+
+        # === Обновляем сообщение с заявками ===
+        # Повторяем логику из admin_withdraws
+        page = 1  # Устанавливаем первую страницу
+        items_per_page = 5
+        offset = (page - 1) * items_per_page
+
+        # Получаем оставшиеся заявки
+        cursor.execute(f"""
+            SELECT 
+                wr.user_id, 
+                wr.stars, 
+                u.username, 
+                u.stars AS balance, 
+                (SELECT COUNT(*) FROM referrals WHERE inviter_id = u.id) AS referrals
+            FROM withdraw_requests wr
+            JOIN users u ON wr.user_id = u.id
+            WHERE wr.status = 'pending'
+            LIMIT {items_per_page} OFFSET {offset}
+        """)
+        requests = cursor.fetchall()
+
+        # Если заявок нет, уведомляем администратора
+        if not requests:
+            await query.edit_message_text("Нет заявок на вывод.", reply_markup=admin_back())
+            return
+
+        # Формируем текст с информацией о заявках
+        requests_text = "\n".join([
+            f"{i + 1 + offset}. @{username or 'Пользователь'} (ID: {user_id})\n"
+            f"   💸 Запрос: {stars} ⭐\n"
+            f"   ⭐ Баланс: {balance} ⭐\n"
+            f"   👥 Рефералов: {referrals}"
+            for i, (user_id, stars, username, balance, referrals) in enumerate(requests)
+        ])
+
+        # Создаём клавиатуру с кнопками для каждой заявки
+        keyboard = [
+            [
+                InlineKeyboardButton(f"✅ Подтвердить", callback_data=f"confirm_withdraw_{user_id}"),
+                InlineKeyboardButton(f"❌ Отклонить", callback_data=f"reject_withdraw_{user_id}")
+            ]
+            for user_id, _, _, _, _ in requests
+        ]
+
+        # Добавляем кнопки для пагинации
+        cursor.execute("SELECT COUNT(*) FROM withdraw_requests WHERE status = 'pending'")
+        total_requests = cursor.fetchone()[0]
+        total_pages = (total_requests + items_per_page - 1) // items_per_page
+
+        pagination_buttons = []
+        if page > 1:
+            pagination_buttons.append(InlineKeyboardButton("⬅️ Назад", callback_data=f"admin_withdraws_{page - 1}"))
+        if page < total_pages:
+            pagination_buttons.append(InlineKeyboardButton("➡️ Вперёд", callback_data=f"admin_withdraws_{page + 1}"))
+
+        if pagination_buttons:
+            keyboard.append(pagination_buttons)
+
+        # Обновляем сообщение с заявками
         await query.edit_message_text(
             f"📋 <b>Заявки на вывод (Страница {page}/{total_pages}):</b>\n\n{requests_text}",
             parse_mode="HTML",
