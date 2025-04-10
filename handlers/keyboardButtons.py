@@ -27,10 +27,12 @@ async def buttonKeyboardHandler(update: Update, context: ContextTypes.DEFAULT_TY
     if text == "📊 Моя статистика":
         cursor.execute("SELECT stars, withdrawn, referral_link FROM users WHERE id=?", (uid,))
         stars, withdrawn, link = cursor.fetchone()
-        cursor.execute("SELECT COUNT(*) FROM users WHERE invited_by=?", (uid,))
-        invited = cursor.fetchone()[0]
+        # Подсчитываем количество пользователей, которых пригласил текущий пользователь
+        cursor.execute("SELECT COUNT(*) FROM referrals WHERE inviter_id=?", (uid,))
+        referalsCount = cursor.fetchone()[0]
+        
         achievements = []
-        if invited >= 5:
+        if referalsCount >= 5:
             achievements.append("🔓 <b>Рекрутёр</b> — пригласил 5+ пользователей")
         if stars + withdrawn >= 200:
             achievements.append("💎 <b>Мастер</b> — заработал 200+ звёзд")
@@ -49,7 +51,7 @@ async def buttonKeyboardHandler(update: Update, context: ContextTypes.DEFAULT_TY
 <b>👤 Профиль:</b> @{username or "Пользователь"}
 ⭐ <b>Баланс:</b> {stars} звёзд
 💸 <b>Выведено:</b> {withdrawn} звёзд
-👥 <b>Рефералов:</b> {invited} пользователей
+👥 <b>Рефералов:</b> {referalsCount} пользователей
 🔗 <b>Ваша ссылка:</b> <code>{link}</code>
     {achievement_text}
     """,
@@ -88,9 +90,6 @@ async def buttonKeyboardHandler(update: Update, context: ContextTypes.DEFAULT_TY
 - ✅ Среди друзей;
 - ✅ В чатах;
 - ✅ В TikTok и других соцсетях.
-
-<b>🔹 Не обман ли это?</b>
-Нам нет смысла никого обманывать, а чтобы подтвердить наши слова, мы публикуем выводы звёзд в реальном времени тут @gifts_withdraws.
 
 <b>🎁 Бонус! Пользователь, который перейдёт по вашей ссылке, получит {price_referred} ⭐️ на баланс!</b>
 

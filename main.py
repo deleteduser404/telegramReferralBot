@@ -11,6 +11,8 @@ import os
 import logging
 import json
 from pathlib import Path
+import asyncio
+from telegram.error import Forbidden
 
 # === Загрузка конфигурации ===
 configPath = Path(__file__).parent / 'config.json'
@@ -26,8 +28,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# === Инициализация приложения ===
-application = ApplicationBuilder().token(os.getenv('TOKEN')).build()
+
 
 # === Вспомогательные функции ===
 async def checkSubscription(uid, context, channels):
@@ -96,43 +97,56 @@ async def combinedHandler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if text:
             await text_handler(update, context)
 
-# === Регистрация обработчиков ===
-application.add_handler(CommandHandler("start", start))
-application.add_handler(CallbackQueryHandler(buttonInlineHandler))
-application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, combinedHandler))
-application.add_handler(MessageHandler(filters.TEXT, text_handler))
 
-import asyncio
-from telegram.error import Forbidden
 
 async def check_blocked_users(context):
     """Фоновая задача для проверки пользователей, заблокировавших бота."""
     while True:
         cursor.execute("SELECT user_id FROM withdraw_requests")
         users = cursor.fetchall()
-
         for (user_id,) in users:
             try:
-                # Проверяем, доступен ли пользователь
+                # Проверка, может ли бот получить информацию о пользователе
                 await context.bot.get_chat_member(chat_id=user_id, user_id=user_id)
             except Forbidden:
-                # Если пользователь заблокировал бота, удаляем его из withdraw_requests
+                # Если пользователь заблокировал бота
                 cursor.execute("DELETE FROM withdraw_requests WHERE user_id=?", (user_id,))
                 conn.commit()
                 print(f"Пользователь {user_id} удалён из withdraw_requests (заблокировал бота).")
             except Exception as e:
-                print(f"Ошибка при проверке пользователя {user_id}: {e}")
+                # Любая ошибка (в том числе если чат не найден)
+                cursor.execute("DELETE FROM withdraw_requests WHERE user_id=?", (user_id,))
+                conn.commit()
+                print(f"Ошибка при проверке пользователя {user_id}: {e}. Заявка удалена.")
 
-        # Ждём 5 минут перед следующей проверкой
+        # Пауза между проверками
         await asyncio.sleep(300)
 
-# Запуск фоновой задачи
+# === Обёртка для post_init ===
 async def start_background_tasks(application):
-    """Запускает фоновую задачу при старте бота."""
+    """Запускает фоновые задачи после запуска приложения."""
     application.create_task(check_blocked_users(application))
+
+
+# === Инициализация приложения ===
+def createApplication():
+    """Создание и настройка приложения Telegram Bot."""
+    application = (
+        ApplicationBuilder()
+        .token(os.getenv('TOKEN'))
+        .post_init(start_background_tasks)
+        .build()
+    )
+    # === Регистрация обработчиков ===
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CallbackQueryHandler(buttonInlineHandler))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, combinedHandler))
+    application.add_handler(MessageHandler(filters.TEXT, text_handler))
+    
+    return application
 
 # === Запуск бота ===
 if __name__ == "__main__":
     logger.info("🤖 Бот запущен!")
-    start_background_tasks(application)  # Запуск фоновой задачи
+    application = createApplication()
     application.run_polling()

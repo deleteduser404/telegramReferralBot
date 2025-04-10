@@ -98,10 +98,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Получаем цену за переход по реферальной ссылке
     cursor.execute("SELECT referral_price_referred FROM settings WHERE id=1")
     price_referred = cursor.fetchone()[0]
-    
-    # Получаем минимальный вывод
-    cursor.execute("SELECT minimum_output FROM settings WHERE id=1")
-    price_referred = cursor.fetchone()[0]
+
 
     from urllib.parse import quote_plus
 

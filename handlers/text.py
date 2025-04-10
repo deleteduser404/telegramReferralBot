@@ -278,11 +278,8 @@ async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 actions.pop(uid, None)
         
         elif action == 'withdraw_request':
-            if uid not in ADMIN_IDS:
-                await update.message.reply_text("⛔ У вас нет доступа.")
-                return
 
-            elif not text.isdigit():
+            if not text.isdigit():
                 await update.message.reply_text("❌ Неверный формат. Введите целое число.", reply_markup=back_button())
                 return
 
